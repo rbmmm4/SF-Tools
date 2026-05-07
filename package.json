@@ -1,0 +1,76 @@
+{
+    "name": "sf-tools",
+    "displayName": "SF Tools",
+    "description": "Salesforce developer toolkit: Custom Labels extractor, If block expander, HTML collapser, Test method collapser",
+    "version": "1.0.0",
+    "publisher": "rbmmm4",
+    "engines": { "vscode": "^1.85.0" },
+    "categories": ["Formatters", "Other"],
+    "activationEvents": [
+        "onLanguage:apex",
+        "onLanguage:javascript",
+        "onLanguage:html"
+    ],
+    "main": "./extension.js",
+    "contributes": {
+        "commands": [
+            {
+                "command": "sf-tools.expandIfs",
+                "title": "SF Tools: Expand If Blocks (añadir llaves)"
+            },
+            {
+                "command": "sf-tools.formatAll",
+                "title": "SF Tools: Format All (expandir ifs + indentar)"
+            },
+            {
+                "command": "sf-tools.collapseHtml",
+                "title": "SF Tools: Colapsar atributos HTML a una línea"
+            },
+            {
+                "command": "sf-tools.collapseTests",
+                "title": "SF Tools: Colapsar métodos @isTest"
+            },
+            {
+                "command": "sf-tools.extractLabel",
+                "title": "SF Tools: Extraer a Custom Label"
+            }
+        ],
+        "menus": {
+            "editor/context": [
+                {
+                    "command": "sf-tools.extractLabel",
+                    "when": "editorHasSelection",
+                    "group": "1_modification@1"
+                }
+            ]
+        },
+        "keybindings": [
+            {
+                "command": "sf-tools.expandIfs",
+                "key": "ctrl+shift+alt+i"
+            },
+            {
+                "command": "sf-tools.formatAll",
+                "key": "ctrl+shift+alt+f"
+            },
+            {
+                "command": "sf-tools.collapseHtml",
+                "key": "ctrl+shift+alt+h"
+            },
+            {
+                "command": "sf-tools.collapseTests",
+                "key": "ctrl+shift+alt+t"
+            }
+        ],
+        "configuration": {
+            "title": "SF Tools",
+            "properties": {
+                "sf-tools.expandOnSave": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Expandir if blocks automáticamente al guardar archivos Apex/JS"
+                }
+            }
+        }
+    }
+}
