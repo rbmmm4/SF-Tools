@@ -23,4 +23,4 @@ jobs:
         with:
           files: '*.vsix'
           tag_name: v1.0.0
-          name: If Expander v1.0.0
+          name: SF Tools v1.0.0
