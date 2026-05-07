@@ -253,8 +253,10 @@ Open the Command Palette (`Ctrl+Shift+P`) and search "SF Tools" / Abre la paleta
 ### Comparación de entornos / Environment comparison
 | Comando | Descripción |
 |---------|-------------|
-| `SF Tools: Comparar entornos (git branches)` | Diff del archivo actual entre dos entornos (sin conexión a org) |
+| `SF Tools: Comparar entornos (git branches)` | Diff del archivo actual entre dos ramas git (ninguna es la local) |
 | `SF Tools: Ver todos los archivos diferentes entre entornos` | Lista completa de archivos que difieren entre dos ramas |
+| `SF Tools: Comparar entorno vs archivo local actual` | Diff del archivo local actual vs una rama git — lado derecho editable para mergear |
+| `SF Tools: Ver todos los archivos diferentes entre entorno y local` | Lista de archivos que difieren entre tu rama local actual y un entorno |
 
 ### Ayuda / Help
 | Comando | Descripción |
