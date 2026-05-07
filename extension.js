@@ -158,10 +158,54 @@ function toApiName(text) {
         .substring(0, 80);
 }
 
+function toConstName(apiName) {
+    return apiName.toUpperCase();
+}
+
+function toCamelCase(apiName) {
+    return apiName
+        .toLowerCase()
+        .replace(/_([a-z])/g, (_, c) => c.toUpperCase())
+        .replace(/^[A-Z]/, c => c.toLowerCase());
+}
+
+function isLwc(fileName) {
+    return fileName.includes('lwc');
+}
+
+function isAura(fileName) {
+    return fileName.includes('aura');
+}
+
 function getLabelReplacement(apiName, languageId, fileName) {
     if (languageId === 'apex') return `Label.${apiName}`;
-    if (fileName.endsWith('.html')) return `{label.${apiName}}`;
-    return `{!$Label.c.${apiName}}`;
+    if (languageId === 'javascript' && isLwc(fileName)) return toConstName(apiName);
+    if (fileName.endsWith('.html') && isLwc(fileName)) return `{${toCamelCase(apiName)}}`;
+    return `{!$Label.c.${apiName}}`; // Visualforce / Aura
+}
+
+async function addLwcLabelImport(jsFileUri, apiName, constName) {
+    let text;
+    try {
+        const raw = await vscode.workspace.fs.readFile(jsFileUri);
+        text = Buffer.from(raw).toString('utf8');
+    } catch { return false; }
+
+    if (text.includes(`from '@salesforce/label/c.${apiName}'`)) return true;
+
+    const importLine = `import ${constName} from '@salesforce/label/c.${apiName}';\n`;
+    const lines = text.split('\n');
+
+    let lastImport = -1;
+    for (let i = 0; i < lines.length; i++) {
+        if (lines[i].trim().startsWith('import ')) lastImport = i;
+    }
+
+    const insertPos = new vscode.Position(Math.max(0, lastImport + 1), 0);
+    const jsDoc = await vscode.workspace.openTextDocument(jsFileUri);
+    const jsEditor = await vscode.window.showTextDocument(jsDoc, { preview: false, viewColumn: vscode.ViewColumn.Beside });
+    await jsEditor.edit(eb => eb.insert(insertPos, importLine));
+    return true;
 }
 
 async function addLabelToFile(fileUri, apiName, value) {
@@ -211,22 +255,327 @@ async function extractToCustomLabel(editor) {
     if (!confirmedName) return;
 
     const doc = editor.document;
-    const replacement = getLabelReplacement(confirmedName, doc.languageId, doc.fileName);
-    await editor.edit(editBuilder => editBuilder.replace(selection, replacement));
+    const lang = doc.languageId;
+    const fileName = doc.fileName;
 
+    // 1. Reemplazar el texto seleccionado
+    const replacement = getLabelReplacement(confirmedName, lang, fileName);
+    await editor.edit(eb => eb.replace(selection, replacement));
+
+    // 2. Para LWC JS: añadir import automáticamente al principio del archivo
+    if (lang === 'javascript' && isLwc(fileName)) {
+        const constName = toConstName(confirmedName);
+        await addLwcLabelImport(doc.uri, confirmedName, constName);
+    }
+
+    // 3. Para LWC HTML: buscar el JS hermano y añadirle el import + aviso de property
+    if (fileName.endsWith('.html') && isLwc(fileName)) {
+        const jsPath = fileName.replace(/\.html$/, '.js');
+        const jsUri = vscode.Uri.file(jsPath);
+        const constName = toConstName(confirmedName);
+        const propName = toCamelCase(confirmedName);
+        const imported = await addLwcLabelImport(jsUri, confirmedName, constName);
+        if (imported) {
+            vscode.window.showWarningMessage(
+                `SF Tools: Import añadido al JS. Añade en tu clase: ${propName} = ${constName};`
+            );
+        }
+    }
+
+    // 4. Crear/actualizar el XML de Custom Labels
     const workspaceFolder = vscode.workspace.getWorkspaceFolder(doc.uri);
     if (!workspaceFolder) {
         vscode.window.showWarningMessage('SF Tools: Label reemplazado pero no se encontró workspace para crear el XML.');
         return;
     }
-    const labelsUri = vscode.Uri.joinPath(workspaceFolder.uri, 'force-app', 'main', 'default', 'labels', 'CustomLabels.labels-meta.xml');
+    const labelsUri = vscode.Uri.joinPath(
+        workspaceFolder.uri, 'force-app', 'main', 'default', 'labels', 'CustomLabels.labels-meta.xml'
+    );
     const created = await addLabelToFile(labelsUri, confirmedName, selectedText);
-    if (created) {
-        const open = await vscode.window.showInformationMessage(
-            `SF Tools: Label '${confirmedName}' añadido a CustomLabels.labels-meta.xml`, 'Abrir XML'
+    if (!created) return;
+
+    // 5. Abrir el XML automáticamente al lado del editor actual
+    const xmlDoc = await vscode.workspace.openTextDocument(labelsUri);
+    await vscode.window.showTextDocument(xmlDoc, { preview: false, viewColumn: vscode.ViewColumn.Beside });
+
+    // 6. Preguntar si hacer deploy
+    const answer = await vscode.window.showInformationMessage(
+        `SF Tools: Label '${confirmedName}' listo. ¿Hacer deploy ahora?`,
+        'Sí, deploy',
+        'No'
+    );
+    if (answer === 'Sí, deploy') {
+        const terminal = vscode.window.createTerminal('SF Tools — Deploy Label');
+        terminal.show();
+        terminal.sendText(
+            `sf project deploy start --source-dir "force-app/main/default/labels/CustomLabels.labels-meta.xml"`
         );
-        if (open === 'Abrir XML') vscode.window.showTextDocument(await vscode.workspace.openTextDocument(labelsUri));
     }
+}
+
+// ============================================================
+// NAVEGACIÓN — Go to Definition (Ctrl+Click)
+// ============================================================
+
+const APEX_KEYWORDS = new Set([
+    'if','else','for','while','do','return','void','null','true','false','this','super','new',
+    'class','interface','enum','extends','implements','try','catch','finally','throw',
+    'public','private','protected','global','static','final','override','virtual','abstract',
+    'with','without','sharing','transient','webservice','testMethod','trigger','on',
+    'insert','update','delete','upsert','merge','undelete',
+    'String','Integer','Boolean','Decimal','Double','Long','Date','DateTime','Time','Id','Blob','Object',
+    'List','Map','Set','SObject','Database','System','Math','Schema','UserInfo',
+    'select','from','where','limit','offset','order','by','asc','desc','and','or','not','like','in',
+    'group','having','count','sum','avg','min','max'
+]);
+
+async function findMethodPosition(fileUri, methodName) {
+    try {
+        const doc = await vscode.workspace.openTextDocument(fileUri);
+        const lines = doc.getText().split('\n');
+        const re = new RegExp(`\\b${methodName}\\s*\\(`);
+        for (let i = 0; i < lines.length; i++) {
+            const t = lines[i].trim();
+            if (re.test(t) && !t.startsWith('//') && !t.startsWith('*')) {
+                return new vscode.Position(i, lines[i].indexOf(methodName));
+            }
+        }
+    } catch {}
+    return new vscode.Position(0, 0);
+}
+
+async function findClassFile(className) {
+    const files = await vscode.workspace.findFiles(`**/${className}.cls`, '**/node_modules/**', 1);
+    return files.length > 0 ? files[0] : null;
+}
+
+function registerNavigationProviders(context) {
+
+    // Provider 1: LWC JS — @salesforce/apex/ClassName.method
+    context.subscriptions.push(
+        vscode.languages.registerDefinitionProvider(
+            { language: 'javascript', pattern: '**/lwc/**/*.js' },
+            {
+                async provideDefinition(document, position) {
+                    const config = vscode.workspace.getConfiguration('sf-tools');
+                    if (!config.get('enableNavigation', true)) return null;
+
+                    const line = document.lineAt(position).text;
+                    if (!line.includes('@salesforce/apex/')) return null;
+
+                    const match = /@salesforce\/apex\/([\w]+)\.([\w]+)/.exec(line);
+                    if (!match) return null;
+
+                    const [, className, methodName] = match;
+                    const wordRange = document.getWordRangeAtPosition(position, /\w+/);
+                    if (!wordRange) return null;
+                    const word = document.getText(wordRange);
+                    if (word !== className && word !== methodName) return null;
+
+                    const file = await findClassFile(className);
+                    if (!file) return null;
+
+                    const targetPos = word === methodName
+                        ? await findMethodPosition(file, methodName)
+                        : new vscode.Position(0, 0);
+
+                    return new vscode.Location(file, targetPos);
+                }
+            }
+        )
+    );
+
+    // Provider 2: LWC HTML — <c-mi-componente> → JS del componente
+    context.subscriptions.push(
+        vscode.languages.registerDefinitionProvider(
+            { language: 'html', pattern: '**/lwc/**/*.html' },
+            {
+                async provideDefinition(document, position) {
+                    const config = vscode.workspace.getConfiguration('sf-tools');
+                    if (!config.get('enableNavigation', true)) return null;
+
+                    const line = document.lineAt(position).text;
+                    const wordRange = document.getWordRangeAtPosition(position, /[a-z][a-z0-9-]*/);
+                    if (!wordRange) return null;
+                    const word = document.getText(wordRange);
+
+                    const tagRe = /<([a-z][a-z0-9]*-[a-z0-9][a-z0-9-]*)/g;
+                    let tagMatch;
+                    while ((tagMatch = tagRe.exec(line)) !== null) {
+                        const fullTag = tagMatch[1];
+                        if (!fullTag.includes(word)) continue;
+                        const parts = fullTag.split('-');
+                        if (parts.length < 2) continue;
+                        const componentName = parts.slice(1)
+                            .map((p, i) => i === 0 ? p : p[0].toUpperCase() + p.slice(1))
+                            .join('');
+                        const files = await vscode.workspace.findFiles(
+                            `**/lwc/${componentName}/${componentName}.js`, '**/node_modules/**', 1
+                        );
+                        if (files.length > 0) return new vscode.Location(files[0], new vscode.Position(0, 0));
+                    }
+                    return null;
+                }
+            }
+        )
+    );
+
+    // Provider 3: Apex .cls — navegación a clases y métodos
+    context.subscriptions.push(
+        vscode.languages.registerDefinitionProvider(
+            { language: 'apex' },
+            {
+                async provideDefinition(document, position) {
+                    const config = vscode.workspace.getConfiguration('sf-tools');
+                    if (!config.get('enableNavigation', true)) return null;
+
+                    const wordRange = document.getWordRangeAtPosition(position, /\w+/);
+                    if (!wordRange) return null;
+                    const word = document.getText(wordRange);
+                    if (!word || word.length < 2 || APEX_KEYWORDS.has(word)) return null;
+
+                    const line = document.lineAt(position).text;
+                    const startChar = wordRange.start.character;
+                    const endChar = wordRange.end.character;
+                    const charBefore = startChar > 0 ? line.charAt(startChar - 1) : '';
+                    const charAfter = line.charAt(endChar);
+
+                    // Caso A: palabra después de punto → es un método o campo de otra clase
+                    // Ej: MiClase.miMetodo() — cursor en "miMetodo"
+                    if (charBefore === '.') {
+                        const beforeDot = line.slice(0, startChar - 1);
+                        const classNameMatch = /([A-Z]\w+)$/.exec(beforeDot);
+                        if (classNameMatch) {
+                            const file = await findClassFile(classNameMatch[1]);
+                            if (file) {
+                                const methodPos = await findMethodPosition(file, word);
+                                return new vscode.Location(file, methodPos);
+                            }
+                        }
+                    }
+
+                    // Caso B: empieza por mayúscula → referencia a otra clase
+                    // Ej: MiClase obj = new MiClase() — cursor en "MiClase"
+                    if (/^[A-Z]/.test(word) && charAfter !== '(') {
+                        const file = await findClassFile(word);
+                        if (file) return new vscode.Location(file, new vscode.Position(0, 0));
+                    }
+
+                    // Caso C: llamada a método en la misma clase
+                    // Ej: this.calcularTotal() o calcularTotal() — cursor en "calcularTotal"
+                    if (charAfter === '(' || line.includes(`${word}(`)) {
+                        const methodPos = await findMethodPosition(document.uri, word);
+                        if (methodPos.line !== position.line) {
+                            return new vscode.Location(document.uri, methodPos);
+                        }
+                    }
+
+                    return null;
+                }
+            }
+        )
+    );
+}
+
+// ============================================================
+// VALIDADOR DE IMPORTS LWC
+// ============================================================
+
+const importDiagnostics = vscode.languages.createDiagnosticCollection('sf-tools-imports');
+
+function collectAllImports(text) {
+    const imports = new Set();
+    // import X from '...'
+    const defaultRe = /import\s+(\w+)\s+from\s+['"][^'"]+['"]/g;
+    let m;
+    while ((m = defaultRe.exec(text)) !== null) imports.add(m[1]);
+    // import { X, Y as Z } from '...'
+    const namedRe = /import\s*\{([^}]+)\}\s*from/g;
+    while ((m = namedRe.exec(text)) !== null) {
+        m[1].split(',').forEach(s => {
+            const name = s.trim().split(/\s+as\s+/).pop().trim();
+            if (name) imports.add(name);
+        });
+    }
+    return imports;
+}
+
+function collectApexImports(text) {
+    const apexImports = new Map(); // name → line index
+    const re = /import\s+(\w+)\s+from\s+'@salesforce\/apex\/([\w.]+)'/g;
+    let m;
+    while ((m = re.exec(text)) !== null) {
+        const lineIndex = text.slice(0, m.index).split('\n').length - 1;
+        apexImports.set(m[1], { line: lineIndex, fullPath: m[2] });
+    }
+    return apexImports;
+}
+
+function checkLwcImports(document) {
+    if (document.languageId !== 'javascript' || !isLwc(document.fileName)) {
+        importDiagnostics.delete(document.uri);
+        return;
+    }
+
+    const text = document.getText();
+    const allImports = collectAllImports(text);
+    const apexImports = collectApexImports(text);
+    const diagnostics = [];
+
+    // 1. @wire(method) sin import
+    const wireRe = /@wire\s*\(\s*(\w+)/g;
+    let m;
+    while ((m = wireRe.exec(text)) !== null) {
+        const name = m[1];
+        if (!allImports.has(name)) {
+            const pos = document.positionAt(m.index);
+            const range = new vscode.Range(pos, pos.translate(0, m[0].length));
+            const d = new vscode.Diagnostic(
+                range,
+                `SF Tools: '${name}' usado en @wire sin import. ¿Falta: import ${name} from '@salesforce/apex/TuClase.${name}';?`,
+                vscode.DiagnosticSeverity.Error
+            );
+            d.source = 'SF Tools';
+            diagnostics.push(d);
+        }
+    }
+
+    // 2. Llamada imperativa Apex: method({ }).then( sin import
+    const imperativeRe = /\b(\w+)\s*\(\s*\{[^}]*\}\s*\)\s*\.(then|catch)\s*\(/g;
+    const skipNames = new Set(['Promise', 'Object', 'Array', 'JSON', 'Math', 'console', 'fetch']);
+    while ((m = imperativeRe.exec(text)) !== null) {
+        const name = m[1];
+        if (skipNames.has(name)) continue;
+        if (!allImports.has(name)) {
+            const pos = document.positionAt(m.index);
+            const range = new vscode.Range(pos, pos.translate(0, name.length));
+            const d = new vscode.Diagnostic(
+                range,
+                `SF Tools: '${name}' parece una llamada Apex imperativa sin import. ¿Falta: import ${name} from '@salesforce/apex/TuClase.${name}';?`,
+                vscode.DiagnosticSeverity.Warning
+            );
+            d.source = 'SF Tools';
+            diagnostics.push(d);
+        }
+    }
+
+    // 3. Import de Apex que no se usa en ningún sitio
+    for (const [name, info] of apexImports) {
+        const usages = (text.match(new RegExp(`\\b${name}\\b`, 'g')) || []).length;
+        if (usages <= 1) { // solo el import en sí
+            const lines = text.split('\n');
+            const range = new vscode.Range(info.line, 0, info.line, lines[info.line].length);
+            const d = new vscode.Diagnostic(
+                range,
+                `SF Tools: El import de Apex '${name}' (${info.fullPath}) no se usa en ningún @wire ni llamada imperativa.`,
+                vscode.DiagnosticSeverity.Warning
+            );
+            d.source = 'SF Tools';
+            diagnostics.push(d);
+        }
+    }
+
+    importDiagnostics.set(document.uri, diagnostics);
 }
 
 // ============================================================
@@ -561,19 +910,44 @@ function activate(context) {
         if (editor) await applyIfTransform(editor);
     }));
 
-    // Complexity: update on editor change and document edit
-    context.subscriptions.push(vscode.window.onDidChangeActiveTextEditor(editor => updateComplexityDecorations(editor)));
+    // Navegación Ctrl+Click
+    registerNavigationProviders(context);
 
+    // Comando manual para forzar validación de imports
+    context.subscriptions.push(vscode.commands.registerCommand('sf-tools.checkImports', () => {
+        const editor = vscode.window.activeTextEditor;
+        if (!editor) return;
+        checkLwcImports(editor.document);
+        vscode.window.showInformationMessage('SF Tools: Validación de imports completada. Revisa el panel Problems.');
+    }));
+
+    // Complexity + import check: actualizar al cambiar de editor
+    context.subscriptions.push(vscode.window.onDidChangeActiveTextEditor(editor => {
+        if (!editor) return;
+        updateComplexityDecorations(editor);
+        checkLwcImports(editor.document);
+    }));
+
+    // Complexity + import check: actualizar al editar (debounced)
     let debounceTimer;
     context.subscriptions.push(vscode.workspace.onDidChangeTextDocument(event => {
         const editor = vscode.window.activeTextEditor;
         if (!editor || editor.document !== event.document) return;
         clearTimeout(debounceTimer);
-        debounceTimer = setTimeout(() => updateComplexityDecorations(editor), 800);
+        debounceTimer = setTimeout(() => {
+            updateComplexityDecorations(editor);
+            checkLwcImports(editor.document);
+        }, 800);
     }));
 
+    // Validar todos los JS abiertos al arrancar
+    vscode.workspace.textDocuments.forEach(checkLwcImports);
+
     // Initial render
-    if (vscode.window.activeTextEditor) updateComplexityDecorations(vscode.window.activeTextEditor);
+    if (vscode.window.activeTextEditor) {
+        updateComplexityDecorations(vscode.window.activeTextEditor);
+        checkLwcImports(vscode.window.activeTextEditor.document);
+    }
 }
 
 function deactivate() {}

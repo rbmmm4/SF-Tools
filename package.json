@@ -41,6 +41,10 @@
             {
                 "command": "sf-tools.toggleComplexity",
                 "title": "SF Tools: Activar/Desactivar complejidad ciclomática"
+            },
+            {
+                "command": "sf-tools.checkImports",
+                "title": "SF Tools: Validar imports de Apex en LWC"
             }
         ],
         "menus": {
@@ -111,6 +115,11 @@
                     "type": "boolean",
                     "default": false,
                     "description": "Profundidad máxima de anidamiento (Depth): nivel más profundo de bloques anidados"
+                },
+                "sf-tools.enableNavigation": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Enable Ctrl+Click navigation: @salesforce/apex imports → Apex class/method, <c-component> → LWC component JS / Activa navegación Ctrl+Click: imports de Apex → clase/método, tags LWC → JS del componente"
                 },
                 "sf-tools.runAll.expandIfs": {
                     "type": "boolean",
