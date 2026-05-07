@@ -22,5 +22,5 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           files: '*.vsix'
-          tag_name: v1.1.0
-          name: SF Tools v1.1.0
+          tag_name: v1.2.0
+          name: SF Tools v1.2.0
