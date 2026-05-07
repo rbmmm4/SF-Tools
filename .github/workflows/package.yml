@@ -1,0 +1,26 @@
+name: Package Extension
+
+on:
+  workflow_dispatch:
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Package VSIX
+        run: npx @vscode/vsce package
+
+      - name: Upload Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: '*.vsix'
+          tag_name: v1.0.0
+          name: If Expander v1.0.0
