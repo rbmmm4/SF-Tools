@@ -2,7 +2,7 @@
     "name": "sf-tools",
     "displayName": "SF Tools",
     "description": "Salesforce developer toolkit for Apex, LWC and Visualforce — Herramienta para desarrolladores Salesforce. EN: (1) Run All — one configurable shortcut runs all enabled operations; (2) Expand If Blocks — adds braces to single-line ifs for PMD compliance; (3) Collapse SOQL — keeps bracket queries on one line; (4) Collapse HTML Attributes — collapses multiline Aura/LWC/VF tags; (5) Collapse @isTest Methods — folds test methods; (6) Extract to Custom Label — right-click to create a label and update CustomLabels.labels-meta.xml; (7) Live Complexity Metrics — CC, COG, LOC, Params per method + nesting depth shown inline on each if/for/while. ES: (1) Run All — un atajo configurable que ejecuta todas las operaciones activas; (2) Expandir ifs — añade llaves a ifs de una línea para cumplir PMD; (3) Colapsar SOQL — deja las queries en una sola línea; (4) Colapsar atributos HTML — colapsa tags multilínea de Aura/LWC/VF; (5) Colapsar @isTest — oculta métodos de test; (6) Extraer a Custom Label — clic derecho para crear el label y actualizar el XML automáticamente; (7) Métricas de complejidad — CC, COG, LOC, Params por método + profundidad de anidamiento en cada if/for/while.",
-    "version": "1.1.0",
+    "version": "1.2.0",
     "publisher": "rbmmm4",
     "engines": { "vscode": "^1.85.0" },
     "categories": ["Formatters", "Other"],
@@ -45,15 +45,70 @@
             {
                 "command": "sf-tools.checkImports",
                 "title": "SF Tools: Validar imports de Apex en LWC"
+            },
+            {
+                "command": "sf-tools.safeDeploy",
+                "title": "SF Tools: Safe Deploy — detectar conflictos y deployar"
+            },
+            {
+                "command": "sf-tools.trackedRetrieve",
+                "title": "SF Tools: Tracked Retrieve — recuperar y guardar timestamp"
+            },
+            {
+                "command": "sf-tools.takeBackup",
+                "title": "SF Tools: Crear Backup del archivo actual"
+            },
+            {
+                "command": "sf-tools.toggleBackup",
+                "title": "SF Tools: Activar/Desactivar backup automático para este archivo"
+            },
+            {
+                "command": "sf-tools.compareBackup",
+                "title": "SF Tools: Gestionar Backups — comparar, restaurar, renombrar"
+            },
+            {
+                "command": "sf-tools.viewSyncStatus",
+                "title": "SF Tools: Ver estado de sync de archivos trackeados"
+            },
+            {
+                "command": "sf-tools.compareEnvironments",
+                "title": "SF Tools: Comparar entornos (git branches)"
+            },
+            {
+                "command": "sf-tools.listEnvDiffs",
+                "title": "SF Tools: Ver todos los archivos diferentes entre entornos"
+            },
+            {
+                "command": "sf-tools.help",
+                "title": "SF Tools: Ayuda — Ver todas las funciones"
+            }
+        ],
+        "submenus": [
+            {
+                "id": "sf-tools.menu",
+                "label": "SF Tools"
             }
         ],
         "menus": {
             "editor/context": [
                 {
-                    "command": "sf-tools.extractLabel",
-                    "when": "editorHasSelection",
-                    "group": "1_modification@1"
+                    "submenu": "sf-tools.menu",
+                    "group": "1_modification@0"
                 }
+            ],
+            "sf-tools.menu": [
+                { "command": "sf-tools.safeDeploy",        "group": "1_deploy@1" },
+                { "command": "sf-tools.trackedRetrieve",   "group": "1_deploy@2" },
+                { "command": "sf-tools.formatAll",         "group": "1_deploy@3" },
+                { "command": "sf-tools.takeBackup",        "group": "2_backup@1" },
+                { "command": "sf-tools.compareBackup",     "group": "2_backup@2" },
+                { "command": "sf-tools.toggleBackup",      "group": "2_backup@3" },
+                { "command": "sf-tools.compareEnvironments","group": "3_env@1" },
+                { "command": "sf-tools.listEnvDiffs",      "group": "3_env@2" },
+                { "command": "sf-tools.extractLabel",      "when": "editorHasSelection", "group": "4_tools@1" },
+                { "command": "sf-tools.expandIfs",         "group": "4_tools@2" },
+                { "command": "sf-tools.viewSyncStatus",    "group": "4_tools@3" },
+            { "command": "sf-tools.help",              "group": "5_help@1" }
             ]
         },
         "keybindings": [
@@ -68,6 +123,14 @@
             {
                 "command": "sf-tools.collapseHtml",
                 "key": "ctrl+shift+alt+h"
+            },
+            {
+                "command": "sf-tools.safeDeploy",
+                "key": "ctrl+shift+alt+d"
+            },
+            {
+                "command": "sf-tools.trackedRetrieve",
+                "key": "ctrl+shift+alt+r"
             },
             {
                 "command": "sf-tools.collapseSoql",
@@ -115,6 +178,36 @@
                     "type": "boolean",
                     "default": false,
                     "description": "Profundidad máxima de anidamiento (Depth): nivel más profundo de bloques anidados"
+                },
+                "sf-tools.environments.dev": {
+                    "type": "string",
+                    "default": "dev",
+                    "description": "Nombre de la rama git del entorno DEV / Git branch name for DEV environment"
+                },
+                "sf-tools.environments.pre": {
+                    "type": "string",
+                    "default": "pre",
+                    "description": "Nombre de la rama git del entorno PRE / Git branch name for PRE environment"
+                },
+                "sf-tools.environments.preprod": {
+                    "type": "string",
+                    "default": "preprod",
+                    "description": "Nombre de la rama git del entorno PREPROD / Git branch name for PREPROD environment"
+                },
+                "sf-tools.environments.prod": {
+                    "type": "string",
+                    "default": "main",
+                    "description": "Nombre de la rama git del entorno PROD / Git branch name for PROD environment"
+                },
+                "sf-tools.deployGuard.autoBackupOnDeploy": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Crear backup automáticamente antes de cada Safe Deploy / Auto-create backup before every Safe Deploy"
+                },
+                "sf-tools.deployGuard.maxBackupsPerFile": {
+                    "type": "number",
+                    "default": 5,
+                    "description": "Número máximo de backups por archivo (los desbloqueados más antiguos se eliminan) / Max backups per file — oldest unlocked ones are deleted"
                 },
                 "sf-tools.enableNavigation": {
                     "type": "boolean",

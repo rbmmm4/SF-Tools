@@ -19,6 +19,9 @@
 | 7 | **Complexity Metrics** — live CC, COG, LOC, Params, nesting depth per line / métricas en vivo | Automatic / Automático |
 | 8 | **Ctrl+Click Navigation** — apex import → class/method, component tag → JS / navegación a clase, método o componente | Automatic / Automático |
 | 9 | **LWC Import Validator** — detects missing/unused Apex imports in real time / detecta imports ausentes en tiempo real | Automatic / Automático |
+| 10 | **Deployment Guard** — conflict detection, versioned backups, diff viewer, safe deploy & retrieve / detección de conflictos, backups con versiones, deploy seguro | `Ctrl+Shift+Alt+D` / `R` |
+| 11 | **Right-click menu** — all actions in one submenu / todas las acciones en un submenú de clic derecho | Right-click |
+| 12 | **Environment comparison** — diff any file or list all changes between DEV/PRE/PREPROD/PROD git branches, no org needed / compara entornos via git sin conectarse a ninguna org | Right-click / Command Palette |
 
 ---
 
@@ -207,20 +210,56 @@ To **hide all metrics**, uncheck `sf-tools.showComplexity` in Settings or run `C
 
 ---
 
-## All Commands Reference
+## All Commands Reference / Referencia completa de comandos
 
-Open the Command Palette (`Ctrl+Shift+P`) and search "SF Tools":
+Open the Command Palette (`Ctrl+Shift+P`) and search "SF Tools" / Abre la paleta de comandos y busca "SF Tools":
 
-| Command | Description |
+### Formato / Formatting
+| Comando | Shortcut | Descripción |
+|---------|----------|-------------|
+| `SF Tools: Format All` | `Ctrl+Shift+Alt+F` | Ejecuta todas las operaciones activas (Run All) |
+| `SF Tools: Expand If Blocks` | `Ctrl+Shift+Alt+I` | Añade llaves a ifs de una línea |
+| `SF Tools: Colapsar SOQL a una línea` | `Ctrl+Shift+Alt+S` | Colapsa queries SOQL multilínea |
+| `SF Tools: Colapsar atributos HTML a una línea` | `Ctrl+Shift+Alt+H` | Colapsa tags Aura/LWC/VF multilínea |
+| `SF Tools: Colapsar métodos @isTest` | `Ctrl+Shift+Alt+T` | Colapsa todos los métodos @isTest |
+
+### Calidad de código / Code quality
+| Comando | Descripción |
 |---------|-------------|
-| `SF Tools: Format All` | Master command — runs all enabled operations |
-| `SF Tools: Expand If Blocks` | Add braces to single-line if statements |
-| `SF Tools: Colapsar SOQL a una línea` | Collapse multiline bracket SOQL to one line |
-| `SF Tools: Colapsar atributos HTML a una línea` | Collapse multiline HTML tags to one line |
-| `SF Tools: Colapsar métodos @isTest` | Fold all @isTest methods in current file |
-| `SF Tools: Extraer a Custom Label` | Convert selected text to a Custom Label |
-| `SF Tools: Activar/Desactivar complejidad ciclomática` | Toggle all complexity metrics on/off |
-| `SF Tools: Validar imports de Apex en LWC` | Force-run the import validator on the current file |
+| `SF Tools: Activar/Desactivar complejidad ciclomática` | Muestra/oculta todas las métricas de complejidad |
+| `SF Tools: Validar imports de Apex en LWC` | Fuerza validación de imports en el archivo LWC actual |
+
+### Custom Labels
+| Comando | Descripción |
+|---------|-------------|
+| `SF Tools: Extraer a Custom Label` | Convierte texto seleccionado en Custom Label (también en clic derecho) |
+
+### Navegación / Navigation
+| Comando | Descripción |
+|---------|-------------|
+| Ctrl+Click en clase/método Apex | Navega a la definición (ver sección 8) |
+| Ctrl+Click en tag `<c-componente>` | Abre el JS del componente LWC |
+
+### Deployment Guard
+| Comando | Shortcut | Descripción |
+|---------|----------|-------------|
+| `SF Tools: Safe Deploy` | `Ctrl+Shift+Alt+D` | Detecta conflictos y deploya con protección |
+| `SF Tools: Tracked Retrieve` | `Ctrl+Shift+Alt+R` | Recupera desde org y guarda timestamp |
+| `SF Tools: Crear Backup del archivo actual` | — | Backup inmediato sin deployar |
+| `SF Tools: Gestionar Backups` | — | Comparar, restaurar, renombrar, bloquear/eliminar versiones |
+| `SF Tools: Activar/Desactivar backup automático para este archivo` | — | Toggle backup automático por archivo |
+| `SF Tools: Ver estado de sync de archivos trackeados` | — | Lista archivos trackeados con sus timestamps de retrieve |
+
+### Comparación de entornos / Environment comparison
+| Comando | Descripción |
+|---------|-------------|
+| `SF Tools: Comparar entornos (git branches)` | Diff del archivo actual entre dos entornos (sin conexión a org) |
+| `SF Tools: Ver todos los archivos diferentes entre entornos` | Lista completa de archivos que difieren entre dos ramas |
+
+### Ayuda / Help
+| Comando | Descripción |
+|---------|-------------|
+| `SF Tools: Ayuda — Ver todas las funciones` | Abre panel con documentación interactiva y colapsable |
 
 ---
 
@@ -315,6 +354,232 @@ import getContacts from '@salesforce/apex/ContactController.getContacts';
 Trigger manually at any time with `Ctrl+Shift+P` → **SF Tools: Validar imports de Apex en LWC**.
 
 Ejecuta manualmente cuando quieras con `Ctrl+Shift+P` → **SF Tools: Validar imports de Apex en LWC**.
+
+---
+
+## 10. Deployment Guard — Safe Deploy, Backups & Conflict Detection
+
+**EN:** Protects you from accidentally overwriting changes made by other developers in the org. Detects conflicts before deploying, creates versioned backups, and lets you visually compare local vs org versions.
+
+**ES:** Te protege de sobreescribir accidentalmente cambios que otros desarrolladores han hecho en la org. Detecta conflictos antes de deployar, crea backups con versiones y te permite comparar visualmente tu versión local con la de la org.
+
+> Requires Salesforce CLI (`sf`) installed and an active org session (`sf org login`). / Requiere Salesforce CLI (`sf`) instalado y sesión activa.
+
+---
+
+### 10.1 Safe Deploy — `Ctrl+Shift+Alt+D`
+
+**EN:** Before deploying, checks if someone else modified the file in the org since your last retrieve. If a conflict is detected, you can view the diff before deciding.
+
+**ES:** Antes de deployar, comprueba si alguien modificó el archivo en la org desde tu último retrieve. Si hay conflicto, puedes ver las diferencias antes de decidir.
+
+**Flow / Flujo:**
+```
+Safe Deploy →
+  1. Conecta con la org y consulta LastModifiedDate del componente
+  2. Compara con tu timestamp local de último retrieve
+  3a. Sin conflicto → [backup opcional] → deploy → guarda nuevo timestamp
+  3b. Con conflicto → muestra aviso con quién lo cambió y cuándo →
+        "Ver diferencias" → abre diff Org ↔ Local en VS Code
+        "Deploy igualmente" → fuerza el deploy
+        "Cancelar" → no hace nada
+```
+
+**Supported metadata / Metadata soportada:**
+`ApexClass`, `ApexTrigger`, `LightningComponentBundle`, `AuraDefinitionBundle`, `ApexPage`, `ApexComponent`, `Flow`
+
+---
+
+### 10.2 Tracked Retrieve — `Ctrl+Shift+Alt+R`
+
+**EN:** Retrieves the file from the org AND saves a timestamp. This timestamp is used by Safe Deploy to detect future conflicts. Always use this instead of a plain retrieve when working with SF Tools.
+
+**ES:** Recupera el archivo desde la org Y guarda un timestamp. Safe Deploy usa ese timestamp para detectar futuros conflictos. Úsalo siempre en lugar de un retrieve normal cuando trabajes con SF Tools.
+
+```
+Tracked Retrieve →
+  1. [Backup opcional si está activado para este archivo]
+  2. sf project retrieve start --source-dir <archivo>
+  3. Guarda timestamp del retrieve
+```
+
+---
+
+### 10.3 Crear Backup — Command Palette
+
+Crea un backup inmediato del archivo actual sin deployar. Los backups se guardan en `.sf-tools-backups/{orgAlias}/{tipo}/{nombre}/{timestamp}/`.
+
+---
+
+### 10.4 Gestionar Backups — Command Palette
+
+Muestra todos los backups de un archivo y permite:
+
+| Acción | Descripción |
+|--------|-------------|
+| **Comparar** | Abre diff: versión del backup ↔ versión local actual |
+| **Restaurar** | Reemplaza el archivo actual por el backup (guarda el estado actual como nuevo backup antes) |
+| **Renombrar** | Asigna un nombre descriptivo al backup (ej: "Antes de refactor login") |
+| **Bloquear / Desbloquear** | Los backups bloqueados 🔒 no se eliminan automáticamente aunque se supere el máximo |
+| **Eliminar** | Borra el backup (no disponible si está bloqueado) |
+
+**Máximo de backups por archivo:** 5 (configurable). Los desbloqueados más antiguos se eliminan solos.
+
+---
+
+### 10.5 Activar/Desactivar Backup Automático — Command Palette
+
+Activa o desactiva la creación automática de backup para el archivo actual cada vez que hagas un Tracked Retrieve.
+
+```
+sf-tools.toggleBackup → toggle ON/OFF para el archivo activo
+```
+
+---
+
+### 10.6 Ver Estado de Sync — Command Palette
+
+Muestra todos los archivos que SF Tools está trackeando con sus timestamps de último retrieve. Desde aquí puedes limpiar timestamps individuales o todos a la vez.
+
+```
+AccountController  ApexClass  Último retrieve: hace 2h (07/05/2026, 10:32:14)
+InvoiceService     ApexClass  Último retrieve: hace 5d (02/05/2026, 16:45:00)
+invoiceCard        LWC        Último retrieve: hace 1h (07/05/2026, 11:15:43)
+```
+
+---
+
+### Deployment Guard — Settings
+
+| Setting | Default | Descripción |
+|---------|---------|-------------|
+| `sf-tools.deployGuard.autoBackupOnDeploy` | `true` | Crear backup antes de cada Safe Deploy |
+| `sf-tools.deployGuard.maxBackupsPerFile` | `5` | Máximo de backups por archivo (los desbloqueados más antiguos se eliminan) |
+
+---
+
+### Deployment Guard — Shortcuts
+
+| Shortcut | Comando |
+|----------|---------|
+| `Ctrl+Shift+Alt+D` | Safe Deploy |
+| `Ctrl+Shift+Alt+R` | Tracked Retrieve |
+| `Ctrl+Shift+P` → Crear Backup | Backup manual |
+| `Ctrl+Shift+P` → Gestionar Backups | Ver/comparar/restaurar backups |
+| `Ctrl+Shift+P` → Ver estado de sync | Ver archivos trackeados |
+
+---
+
+## 11. Menú contextual — Clic derecho / Right-click menu
+
+**EN:** All main SF Tools actions are available from a single right-click submenu. No need to remember shortcuts.
+**ES:** Todas las acciones principales de SF Tools están disponibles desde un único submenú de clic derecho. No hace falta recordar atajos.
+
+Right-click anywhere in the editor → **SF Tools** → submenu expands:
+
+```
+SF Tools ▶
+  ├── Safe Deploy — detectar conflictos y deployar
+  ├── Tracked Retrieve — recuperar y guardar timestamp
+  ├── Format All (expandir ifs + indentar)
+  ├── ──────────────────────────────────────
+  ├── Crear Backup del archivo actual
+  ├── Gestionar Backups — comparar, restaurar, renombrar
+  ├── Activar/Desactivar backup automático
+  ├── ──────────────────────────────────────
+  ├── Comparar entornos (git branches)
+  ├── Ver todos los archivos diferentes entre entornos
+  ├── ──────────────────────────────────────
+  ├── Extraer a Custom Label  (solo si hay texto seleccionado)
+  ├── Expand If Blocks
+  └── Ver estado de sync de archivos trackeados
+```
+
+> **Note / Nota:** "Safe Deploy" is NOT the same as `sf project deploy start` from the CLI. The CLI deploy bypasses conflict detection. Always use SF Tools Safe Deploy when you want protection against overwrites. / "Safe Deploy" NO es lo mismo que `sf project deploy start` desde el CLI. El CLI bypasea la detección de conflictos. Usa siempre SF Tools Safe Deploy cuando quieras protección.
+
+---
+
+## 12. Comparación de entornos (DEV / PRE / PREPROD / PROD)
+
+**EN:** Designed for teams where direct org access is only available to one environment (e.g. DEV via CLI) and the rest are promoted through git branches. Compares Salesforce metadata between any two environment branches — **no org connection needed, works entirely with the local git repository**.
+
+**ES:** Diseñado para equipos donde solo se tiene acceso directo por CLI a un entorno (por ejemplo DEV) y el resto se gestiona por ramas git. Compara metadata de Salesforce entre cualquier par de entornos — **sin necesitar conexión a ninguna org, funciona con el repositorio git local**.
+
+---
+
+### Configuración de ramas / Branch configuration
+
+Go to **Settings → SF Tools → Environments** and set your branch names:
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `sf-tools.environments.dev`     | `dev`     | Rama git del entorno DEV |
+| `sf-tools.environments.pre`     | `pre`     | Rama git del entorno PRE |
+| `sf-tools.environments.preprod` | `preprod` | Rama git del entorno PREPROD |
+| `sf-tools.environments.prod`    | `main`    | Rama git del entorno PROD |
+
+> **Importante / Important:** Las ramas deben existir en tu repositorio local. Haz `git fetch --all` antes de usar esta función para tener las ramas actualizadas. / Branches must exist locally. Run `git fetch --all` first to have up-to-date branches.
+
+---
+
+### Comparar archivo actual entre dos entornos
+
+`Ctrl+Shift+P` → **SF Tools: Comparar entornos** / Right-click → SF Tools → Comparar entornos
+
+1. Selecciona el primer entorno (DEV / PRE / PREPROD / PROD)
+2. Selecciona el segundo entorno
+3. Se abre el **diff viewer de VS Code** con el archivo actual comparado entre las dos ramas
+
+```
+AccountController.cls — PRE (pre) ↔ PREPROD (preprod)
+┌─────────────────────────────────────────────────────┐
+│ PRE                    │ PREPROD                    │
+│ public void process() {│ public void process() {    │
+│   if(x == null)        │   if(x == null) {          │
+│     return;            │       return;              │
+│                        │   }                        │
+└─────────────────────────────────────────────────────┘
+```
+
+---
+
+### Ver todos los archivos diferentes entre dos entornos
+
+`Ctrl+Shift+P` → **SF Tools: Ver todos los archivos diferentes entre entornos** / Right-click → SF Tools → Ver todos los archivos diferentes
+
+1. Selecciona los dos entornos
+2. SF Tools ejecuta `git diff --name-only branch1...branch2 -- force-app/`
+3. Muestra la lista de todos los archivos de metadata que difieren
+4. Selecciona cualquiera para ver su diff inmediatamente
+
+**Ejemplo de resultado / Example output:**
+```
+$(info) 7 archivo(s) diferentes entre PRE y PREPROD
+
+AccountController.cls          force-app/main/default/classes
+InvoiceService.cls             force-app/main/default/classes
+invoiceCard.js                 force-app/main/default/lwc/invoiceCard
+invoiceCard.html               force-app/main/default/lwc/invoiceCard
+CustomLabels.labels-meta.xml   force-app/main/default/labels
+OrderFlow.flow-meta.xml        force-app/main/default/flows
+MyObject__c.object-meta.xml    force-app/main/default/objects
+```
+
+---
+
+### Flujo de trabajo recomendado / Recommended workflow
+
+```
+1. Trabajas en DEV → usas Safe Deploy y Tracked Retrieve con CLI
+2. Abres PR dev → pre
+3. Antes de hacer la PR: Ctrl+P → "Ver todos los archivos diferentes"
+   → Seleccionas DEV ↔ PRE para ver qué cambia
+4. PR mergeada → pre → preprod
+5. Mismo proceso: comparas PRE ↔ PREPROD para verificar
+6. Antes de PROD: comparas PREPROD ↔ PROD para validar
+```
+
+Nunca necesitas conectarte a PRE, PREPROD ni PROD. Todo se hace con git local.
 
 ---
 

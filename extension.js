@@ -1388,7 +1388,7 @@ OrderFlow.flow-meta.xml flows/</pre>
 </details>
 
 <p style="margin-top:32px; color: var(--vscode-descriptionForeground); font-size:0.82em; text-align:center">
-  SF Tools v1.0.0 · <kbd>Ctrl+Shift+P</kbd> → <em>SF Tools: Ayuda</em> para volver aquí · Clic derecho en cualquier editor → <strong>SF Tools</strong>
+  SF Tools v1.2.0 · <kbd>Ctrl+Shift+P</kbd> → <em>SF Tools: Ayuda</em> para volver aquí · Clic derecho en cualquier editor → <strong>SF Tools</strong>
 </p>
 
 </body>
