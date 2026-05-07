@@ -20,8 +20,8 @@
 | 8 | **Ctrl+Click Navigation** — apex import → class/method, component tag → JS / navegación a clase, método o componente | Automatic / Automático |
 | 9 | **LWC Import Validator** — detects missing/unused Apex imports in real time / detecta imports ausentes en tiempo real | Automatic / Automático |
 | 10 | **Deployment Guard** — conflict detection, versioned backups, diff viewer, safe deploy & retrieve / detección de conflictos, backups con versiones, deploy seguro | `Ctrl+Shift+Alt+D` / `R` |
-| 11 | **Right-click menu** — all actions in one submenu / todas las acciones en un submenú de clic derecho | Right-click |
-| 12 | **Environment comparison** — diff any file or list all changes between DEV/PRE/PREPROD/PROD git branches, no org needed / compara entornos via git sin conectarse a ninguna org | Right-click / Command Palette |
+| 11 | **Right-click menu** — configurable submenu, show/hide each item from Settings / submenú configurable, muestra u oculta cada opción desde Ajustes | Right-click |
+| 12 | **Environment comparison** — branch vs branch, branch vs local (editable diff to cherry-pick changes), list all diffs / compara entornos entre sí o contra tu local editable para traer cambios concretos | Right-click / Command Palette |
 
 ---
 
@@ -193,20 +193,62 @@ To **hide all metrics**, uncheck `sf-tools.showComplexity` in Settings or run `C
 
 ## All Settings Reference
 
-| Setting | Type | Default | Description |
-|---------|------|---------|-------------|
-| `sf-tools.expandOnSave` | boolean | `true` | Auto-expand if blocks on save (Apex + JS) |
-| `sf-tools.showComplexity` | boolean | `true` | Show/hide all complexity metrics |
-| `sf-tools.complexity.cyclomatic` | boolean | `true` | Show Cyclomatic Complexity (CC) |
-| `sf-tools.complexity.cognitive` | boolean | `true` | Show Cognitive Complexity (COG) |
-| `sf-tools.complexity.loc` | boolean | `false` | Show Lines of Code (LOC) |
-| `sf-tools.complexity.params` | boolean | `false` | Show parameter count (Params) |
-| `sf-tools.complexity.nesting` | boolean | `false` | Show max nesting depth (Depth) |
-| `sf-tools.runAll.expandIfs` | boolean | `true` | Include if-block expansion in Run All |
-| `sf-tools.runAll.formatDocument` | boolean | `true` | Include document formatting in Run All |
-| `sf-tools.runAll.collapseSoql` | boolean | `true` | Include SOQL collapse in Run All |
-| `sf-tools.runAll.collapseHtml` | boolean | `false` | Include HTML collapse in Run All |
-| `sf-tools.runAll.collapseTests` | boolean | `false` | Include @isTest collapse in Run All |
+### Formateo general
+| Setting | Default | Descripción |
+|---------|---------|-------------|
+| `sf-tools.expandOnSave` | `true` | Expandir if blocks al guardar (Apex + JS) |
+| `sf-tools.runAll.expandIfs` | `true` | Run All: incluir expansión de ifs |
+| `sf-tools.runAll.formatDocument` | `true` | Run All: incluir indentación del documento |
+| `sf-tools.runAll.collapseSoql` | `true` | Run All: incluir colapso de SOQL |
+| `sf-tools.runAll.collapseHtml` | `false` | Run All: incluir colapso de HTML |
+| `sf-tools.runAll.collapseTests` | `false` | Run All: incluir colapso de @isTest |
+
+### Complejidad / Complexity
+| Setting | Default | Descripción |
+|---------|---------|-------------|
+| `sf-tools.showComplexity` | `true` | Mostrar/ocultar todas las métricas de complejidad |
+| `sf-tools.complexity.cyclomatic` | `true` | Complejidad Ciclomática (CC) |
+| `sf-tools.complexity.cognitive` | `true` | Complejidad Cognitiva (COG) |
+| `sf-tools.complexity.loc` | `false` | Líneas de código (LOC) |
+| `sf-tools.complexity.params` | `false` | Número de parámetros (Params) |
+| `sf-tools.complexity.nesting` | `false` | Profundidad de anidamiento por línea (Depth) |
+
+### Navegación / Navigation
+| Setting | Default | Descripción |
+|---------|---------|-------------|
+| `sf-tools.enableNavigation` | `true` | Ctrl+Click navigation (Apex, LWC JS, LWC HTML) |
+
+### Deployment Guard
+| Setting | Default | Descripción |
+|---------|---------|-------------|
+| `sf-tools.deployGuard.autoBackupOnDeploy` | `true` | Backup automático antes de cada Safe Deploy |
+| `sf-tools.deployGuard.maxBackupsPerFile` | `5` | Máximo de backups por archivo |
+
+### Entornos / Environments
+| Setting | Default | Descripción |
+|---------|---------|-------------|
+| `sf-tools.environments.dev` | `dev` | Rama git del entorno DEV |
+| `sf-tools.environments.pre` | `pre` | Rama git del entorno PRE |
+| `sf-tools.environments.preprod` | `preprod` | Rama git del entorno PREPROD |
+| `sf-tools.environments.prod` | `main` | Rama git del entorno PROD |
+
+### Menú contextual / Context menu
+| Setting | Default | Elemento que controla |
+|---------|---------|----------------------|
+| `sf-tools.menu.safeDeploy` | `true` | Safe Deploy |
+| `sf-tools.menu.trackedRetrieve` | `true` | Tracked Retrieve |
+| `sf-tools.menu.formatAll` | `true` | Format All |
+| `sf-tools.menu.takeBackup` | `true` | Crear Backup |
+| `sf-tools.menu.compareBackup` | `true` | Gestionar Backups |
+| `sf-tools.menu.toggleBackup` | `false` | Activar/Desactivar backup automático |
+| `sf-tools.menu.compareEnvironments` | `true` | Comparar entornos (branch ↔ branch) |
+| `sf-tools.menu.listEnvDiffs` | `true` | Ver archivos diferentes entre entornos |
+| `sf-tools.menu.compareEnvVsLocal` | `true` | Comparar entorno vs local |
+| `sf-tools.menu.listEnvVsLocalDiffs` | `false` | Ver archivos diferentes entorno vs local |
+| `sf-tools.menu.extractLabel` | `true` | Extraer a Custom Label |
+| `sf-tools.menu.expandIfs` | `false` | Expand If Blocks |
+| `sf-tools.menu.viewSyncStatus` | `false` | Ver estado de sync |
+| `sf-tools.menu.help` | `true` | Ayuda |
 
 ---
 
@@ -474,8 +516,8 @@ invoiceCard        LWC        Último retrieve: hace 1h (07/05/2026, 11:15:43)
 
 ## 11. Menú contextual — Clic derecho / Right-click menu
 
-**EN:** All main SF Tools actions are available from a single right-click submenu. No need to remember shortcuts.
-**ES:** Todas las acciones principales de SF Tools están disponibles desde un único submenú de clic derecho. No hace falta recordar atajos.
+**EN:** All SF Tools actions in one submenu. Every item can be shown or hidden individually from Settings.
+**ES:** Todas las acciones de SF Tools en un submenú. Cada elemento se puede mostrar u ocultar individualmente desde Ajustes.
 
 Right-click anywhere in the editor → **SF Tools** → submenu expands:
 
@@ -489,15 +531,39 @@ SF Tools ▶
   ├── Gestionar Backups — comparar, restaurar, renombrar
   ├── Activar/Desactivar backup automático
   ├── ──────────────────────────────────────
-  ├── Comparar entornos (git branches)
-  ├── Ver todos los archivos diferentes entre entornos
+  ├── Comparar entornos (branch ↔ branch)
+  ├── Ver archivos diferentes entre entornos
+  ├── Comparar entorno vs archivo local actual
+  ├── Ver archivos diferentes entre entorno y local
   ├── ──────────────────────────────────────
   ├── Extraer a Custom Label  (solo si hay texto seleccionado)
   ├── Expand If Blocks
-  └── Ver estado de sync de archivos trackeados
+  ├── Ver estado de sync
+  └── Ayuda
 ```
 
-> **Note / Nota:** "Safe Deploy" is NOT the same as `sf project deploy start` from the CLI. The CLI deploy bypasses conflict detection. Always use SF Tools Safe Deploy when you want protection against overwrites. / "Safe Deploy" NO es lo mismo que `sf project deploy start` desde el CLI. El CLI bypasea la detección de conflictos. Usa siempre SF Tools Safe Deploy cuando quieras protección.
+### Configurar qué opciones aparecen / Configure visible items
+
+Cada elemento tiene un check individual en **Settings → SF Tools → Menú contextual**. Por defecto vienen ocultas las opciones menos frecuentes:
+
+| Setting | Default | Elemento del menú |
+|---------|---------|-------------------|
+| `sf-tools.menu.safeDeploy` | `true` | Safe Deploy |
+| `sf-tools.menu.trackedRetrieve` | `true` | Tracked Retrieve |
+| `sf-tools.menu.formatAll` | `true` | Format All |
+| `sf-tools.menu.takeBackup` | `true` | Crear Backup |
+| `sf-tools.menu.compareBackup` | `true` | Gestionar Backups |
+| `sf-tools.menu.toggleBackup` | `false` | Activar/Desactivar backup automático |
+| `sf-tools.menu.compareEnvironments` | `true` | Comparar entornos (branch ↔ branch) |
+| `sf-tools.menu.listEnvDiffs` | `true` | Ver archivos diferentes entre entornos |
+| `sf-tools.menu.compareEnvVsLocal` | `true` | Comparar entorno vs local |
+| `sf-tools.menu.listEnvVsLocalDiffs` | `false` | Ver archivos diferentes entre entorno y local |
+| `sf-tools.menu.extractLabel` | `true` | Extraer a Custom Label |
+| `sf-tools.menu.expandIfs` | `false` | Expand If Blocks (tiene shortcut propio) |
+| `sf-tools.menu.viewSyncStatus` | `false` | Ver estado de sync |
+| `sf-tools.menu.help` | `true` | Ayuda |
+
+> **Nota:** "Safe Deploy" NO es lo mismo que `sf project deploy start` desde el CLI. El CLI bypasea la detección de conflictos. Usa siempre SF Tools Safe Deploy cuando quieras protección contra sobreescrituras.
 
 ---
 
@@ -569,16 +635,53 @@ MyObject__c.object-meta.xml    force-app/main/default/objects
 
 ---
 
+### Comparar entorno vs archivo local actual
+
+`Ctrl+Shift+P` → **SF Tools: Comparar entorno vs archivo local actual** / Right-click → SF Tools → Comparar entorno vs local
+
+1. Selecciona el entorno (DEV / PRE / PREPROD / PROD)
+2. Se abre el diff con **el entorno a la izquierda** y **tu archivo local a la derecha**
+3. El lado derecho es tu archivo real — **es editable directamente desde el diff**
+4. Usa las **flechas `▶` que aparecen en el gutter** de cada cambio para aplicar ese bloque concreto de la rama a tu archivo local
+
+```
+AccountController.cls — PROD ↔ Local actual
+┌──────────────────────────┬──────────────────────────┐
+│ PROD (solo lectura)      │ Local actual (editable) ▶ │
+│ if(x == null) {          │ if(x == null) return;     │
+│     return;              │                           │
+│ }                        │                           │
+└──────────────────────────┴──────────────────────────┘
+                            ▶ click → aplica ese bloque
+```
+
+> **Caso de uso típico:** Estás en preprod y necesitas incorporar un hotfix que está en PROD. Abre el diff PROD ↔ Local y aplica solo los cambios que te interesan con las flechas — sin git merge, sin riesgo de romper tus cambios.
+
+---
+
+### Ver archivos diferentes entre entorno y local
+
+`Ctrl+Shift+P` → **SF Tools: Ver todos los archivos diferentes entre entorno y local**
+
+1. Selecciona un entorno
+2. Lista todos los archivos de `force-app/` que difieren entre esa rama y tu working tree actual
+3. Haz clic en cualquiera para abrirlo en el diff editable
+
+Útil justo antes de crear una PR: sabes exactamente qué tienes diferente respecto al entorno destino.
+
+---
+
 ### Flujo de trabajo recomendado / Recommended workflow
 
 ```
 1. Trabajas en DEV → usas Safe Deploy y Tracked Retrieve con CLI
-2. Abres PR dev → pre
-3. Antes de hacer la PR: Ctrl+P → "Ver todos los archivos diferentes"
-   → Seleccionas DEV ↔ PRE para ver qué cambia
-4. PR mergeada → pre → preprod
-5. Mismo proceso: comparas PRE ↔ PREPROD para verificar
-6. Antes de PROD: comparas PREPROD ↔ PROD para validar
+2. Antes de PR dev→pre: Right-click → "Ver archivos diferentes entre entornos"
+   → DEV ↔ PRE para ver qué cambia
+3. Necesitas un hotfix de PROD en preprod:
+   → Right-click → "Comparar entorno vs local" → seleccionas PROD
+   → Usas las flechas ▶ del diff para traer solo los cambios que necesitas
+4. Antes de PR pre→preprod: comparas PRE ↔ PREPROD para validar
+5. Antes de PROD: comparas PREPROD ↔ PROD para validar
 ```
 
 Nunca necesitas conectarte a PRE, PREPROD ni PROD. Todo se hace con git local.
@@ -595,5 +698,14 @@ Nunca necesitas conectarte a PRE, PREPROD ni PROD. Todo se hace con git local.
 
 ## Release Notes
 
+### 1.2.0
+- Deployment Guard: Safe Deploy, Tracked Retrieve, versioned backups (compare, restore, rename, lock), sync status
+- Environment comparison: branch vs branch, branch vs local editable (cherry-pick with diff arrows), list all diffs
+- Right-click submenu with all actions, fully configurable per-item from Settings
+- Help panel with interactive collapsible sections
+- LWC Import Validator: missing @wire imports, unused Apex imports
+- Ctrl+Click navigation for Apex classes/methods and LWC components
+- Custom Label extractor with auto-import for LWC JS/HTML and optional deploy
+
 ### 1.0.0
-Initial release with all core features: if-block expansion, SOQL collapser, HTML collapser, @isTest folder, Custom Label extractor, and live complexity metrics (CC, COG, LOC, Params, Depth).
+Initial release: if-block expansion, SOQL collapser, HTML collapser, @isTest folder, Custom Label extractor, live complexity metrics (CC, COG, LOC, Params, Depth).

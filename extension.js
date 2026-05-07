@@ -176,10 +176,6 @@ function isLwc(fileName) {
     return fileName.includes('lwc');
 }
 
-function isAura(fileName) {
-    return fileName.includes('aura');
-}
-
 function getLabelReplacement(apiName, languageId, fileName) {
     if (languageId === 'apex') return `Label.${apiName}`;
     if (languageId === 'javascript' && isLwc(fileName)) return toConstName(apiName);
@@ -957,6 +953,8 @@ function activate(context) {
         vscode.commands.registerCommand('sf-tools.viewSyncStatus', cmdViewSyncStatus),
         vscode.commands.registerCommand('sf-tools.compareEnvironments', cmdCompareEnvironments),
         vscode.commands.registerCommand('sf-tools.listEnvDiffs', cmdListEnvDiffs),
+        vscode.commands.registerCommand('sf-tools.compareEnvVsLocal', cmdCompareEnvVsLocal),
+        vscode.commands.registerCommand('sf-tools.listEnvVsLocalDiffs', cmdListEnvVsLocalDiffs),
         vscode.commands.registerCommand('sf-tools.help', cmdHelp)
     );
 
@@ -1341,10 +1339,19 @@ this.calcularTotal();
 
 AccountController.cls   classes/
 InvoiceService.cls      classes/
-invoiceCard.js          lwc/invoiceCard/
-invoiceCard.html        lwc/invoiceCard/
-CustomLabels.xml        labels/
-OrderFlow.flow-meta.xml flows/</pre>
+invoiceCard.js          lwc/invoiceCard/</pre>
+      </div>
+      <div class="card">
+        <h4>Comparar entorno vs archivo local actual</h4>
+        <p>Compara el archivo que tienes abierto ahora mismo (incluyendo cambios sin commitear) contra una rama de entorno. El <strong>lado derecho es tu archivo real editable</strong> — puedes copiar cambios directamente desde el diff.</p>
+        <pre>AccountController.cls — PRE ↔ Local actual
+← PRE (rama pre)  |  Local actual (editable) →
+                  |  // tu versión con cambios</pre>
+      </div>
+      <div class="card">
+        <h4>Ver archivos diferentes entre entorno y local</h4>
+        <p>Ejecuta <code>git diff --name-only rama -- force-app/</code> comparando tu working tree contra el entorno. Lista todos los archivos distintos; haz clic en uno para abrir el diff con tu archivo local editable en el lado derecho.</p>
+        <div class="tip" style="margin-top:8px">Útil justo antes de hacer una PR: sabes exactamente qué has cambiado respecto al entorno destino.</div>
       </div>
     </div>
     <div class="sep"></div>
@@ -1923,6 +1930,132 @@ async function cmdListEnvDiffs() {
             if (selected && selected.relativePath) {
                 await showEnvFileDiff(selected.relativePath, pair.env1, pair.env2, cwd);
             }
+        }
+    );
+}
+
+// ── Comparar entorno vs local (working tree) ──
+
+async function cmdCompareEnvVsLocal() {
+    const editor = vscode.window.activeTextEditor;
+    if (!editor) {
+        vscode.window.showWarningMessage('SF Tools: Abre el archivo que quieres comparar con un entorno.');
+        return;
+    }
+
+    const envs = getEnvBranches();
+    const selectedEnv = await vscode.window.showQuickPick(envs, {
+        placeHolder: 'Selecciona el entorno a comparar con tu archivo local actual'
+    });
+    if (!selectedEnv) return;
+
+    const cwd = getWorkspaceRoot();
+    const filePath = editor.document.fileName;
+    const relativePath = path.relative(cwd, filePath).replace(/\\/g, '/');
+
+    await vscode.window.withProgress(
+        { location: vscode.ProgressLocation.Notification, title: `SF Tools: Comparando ${selectedEnv.label} ↔ local...` },
+        async () => {
+            const branchContent = await getFileFromBranch(selectedEnv.branch, relativePath, cwd);
+            if (branchContent === null) {
+                vscode.window.showWarningMessage(
+                    `SF Tools: "${path.basename(filePath)}" no existe en la rama ${selectedEnv.branch} (${selectedEnv.label}).`
+                );
+                return;
+            }
+            const tmpDir = path.join(os.tmpdir(), 'sf-tools-envdiff');
+            const name = path.basename(filePath);
+            const branchFile = path.join(tmpDir, `${selectedEnv.label}__${name}`);
+            try { await vscode.workspace.fs.createDirectory(vscode.Uri.file(tmpDir)); } catch {}
+            await vscode.workspace.fs.writeFile(vscode.Uri.file(branchFile), Buffer.from(branchContent, 'utf8'));
+
+            // Izquierda: versión del entorno (solo lectura) | Derecha: archivo local real (editable)
+            await vscode.commands.executeCommand(
+                'vscode.diff',
+                vscode.Uri.file(branchFile),
+                vscode.Uri.file(filePath),
+                `${name} — ${selectedEnv.label} ↔ Local (▶ aplica cambios individuales)`
+            );
+            vscode.window.showInformationMessage(
+                `SF Tools: ${selectedEnv.label} a la izquierda, tu archivo a la derecha. Usa las flechas ▶ del gutter para traer cambios concretos de ${selectedEnv.label}.`,
+                'Entendido'
+            );
+        }
+    );
+}
+
+async function cmdListEnvVsLocalDiffs() {
+    const envs = getEnvBranches();
+    const selectedEnv = await vscode.window.showQuickPick(envs, {
+        placeHolder: 'Selecciona el entorno a comparar con tu rama local actual'
+    });
+    if (!selectedEnv) return;
+
+    const cwd = getWorkspaceRoot();
+
+    await vscode.window.withProgress(
+        { location: vscode.ProgressLocation.Notification, title: `SF Tools: Buscando diferencias ${selectedEnv.label} ↔ local...` },
+        async () => {
+            // Compara working tree actual vs rama del entorno
+            const res = await runGitCommand(
+                ['diff', '--name-only', selectedEnv.branch, '--', 'force-app/'],
+                cwd
+            );
+
+            if (res.code !== 0) {
+                vscode.window.showErrorMessage(
+                    `SF Tools: Error comparando con "${selectedEnv.branch}". ¿Existe la rama localmente? Prueba con git fetch --all.`
+                );
+                return;
+            }
+
+            const files = res.stdout.trim().split('\n').filter(Boolean);
+            if (!files.length) {
+                vscode.window.showInformationMessage(
+                    `SF Tools: ✅ No hay diferencias en force-app/ entre tu rama actual y ${selectedEnv.label}.`
+                );
+                return;
+            }
+
+            const items = files.map(f => ({
+                label: `$(diff)  ${path.basename(f)}`,
+                description: path.dirname(f),
+                relativePath: f
+            }));
+
+            const header = {
+                label: `$(info)  ${files.length} archivo(s) diferente(s): Local ↔ ${selectedEnv.label} (${selectedEnv.branch})`,
+                description: 'Selecciona uno para ver el diff — el lado derecho es tu archivo local editable',
+                kind: vscode.QuickPickItemKind.Separator
+            };
+
+            const selected = await vscode.window.showQuickPick([header, ...items], {
+                placeHolder: `Local ↔ ${selectedEnv.label} — elige un archivo`,
+                matchOnDescription: true
+            });
+
+            if (!selected || !selected.relativePath) return;
+
+            const localFile = path.join(cwd, selected.relativePath);
+            const branchContent = await getFileFromBranch(selectedEnv.branch, selected.relativePath, cwd);
+
+            if (branchContent === null) {
+                vscode.window.showWarningMessage(`SF Tools: El archivo no existe en la rama ${selectedEnv.branch}.`);
+                return;
+            }
+
+            const tmpDir = path.join(os.tmpdir(), 'sf-tools-envdiff');
+            const name = path.basename(selected.relativePath);
+            const branchFile = path.join(tmpDir, `${selectedEnv.label}__${name}`);
+            try { await vscode.workspace.fs.createDirectory(vscode.Uri.file(tmpDir)); } catch {}
+            await vscode.workspace.fs.writeFile(vscode.Uri.file(branchFile), Buffer.from(branchContent, 'utf8'));
+
+            await vscode.commands.executeCommand(
+                'vscode.diff',
+                vscode.Uri.file(branchFile),
+                vscode.Uri.file(localFile),
+                `${name} — ${selectedEnv.label} (${selectedEnv.branch}) ↔ Local actual`
+            );
         }
     );
 }

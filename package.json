@@ -79,6 +79,14 @@
                 "title": "SF Tools: Ver todos los archivos diferentes entre entornos"
             },
             {
+                "command": "sf-tools.compareEnvVsLocal",
+                "title": "SF Tools: Comparar entorno vs archivo local actual"
+            },
+            {
+                "command": "sf-tools.listEnvVsLocalDiffs",
+                "title": "SF Tools: Ver todos los archivos diferentes entre entorno y local"
+            },
+            {
                 "command": "sf-tools.help",
                 "title": "SF Tools: Ayuda — Ver todas las funciones"
             }
@@ -97,18 +105,20 @@
                 }
             ],
             "sf-tools.menu": [
-                { "command": "sf-tools.safeDeploy",        "group": "1_deploy@1" },
-                { "command": "sf-tools.trackedRetrieve",   "group": "1_deploy@2" },
-                { "command": "sf-tools.formatAll",         "group": "1_deploy@3" },
-                { "command": "sf-tools.takeBackup",        "group": "2_backup@1" },
-                { "command": "sf-tools.compareBackup",     "group": "2_backup@2" },
-                { "command": "sf-tools.toggleBackup",      "group": "2_backup@3" },
-                { "command": "sf-tools.compareEnvironments","group": "3_env@1" },
-                { "command": "sf-tools.listEnvDiffs",      "group": "3_env@2" },
-                { "command": "sf-tools.extractLabel",      "when": "editorHasSelection", "group": "4_tools@1" },
-                { "command": "sf-tools.expandIfs",         "group": "4_tools@2" },
-                { "command": "sf-tools.viewSyncStatus",    "group": "4_tools@3" },
-            { "command": "sf-tools.help",              "group": "5_help@1" }
+                { "command": "sf-tools.safeDeploy",          "group": "1_deploy@1", "when": "config.sf-tools.menu.safeDeploy" },
+                { "command": "sf-tools.trackedRetrieve",     "group": "1_deploy@2", "when": "config.sf-tools.menu.trackedRetrieve" },
+                { "command": "sf-tools.formatAll",           "group": "1_deploy@3", "when": "config.sf-tools.menu.formatAll" },
+                { "command": "sf-tools.takeBackup",          "group": "2_backup@1", "when": "config.sf-tools.menu.takeBackup" },
+                { "command": "sf-tools.compareBackup",       "group": "2_backup@2", "when": "config.sf-tools.menu.compareBackup" },
+                { "command": "sf-tools.toggleBackup",        "group": "2_backup@3", "when": "config.sf-tools.menu.toggleBackup" },
+                { "command": "sf-tools.compareEnvironments", "group": "3_env@1",    "when": "config.sf-tools.menu.compareEnvironments" },
+                { "command": "sf-tools.listEnvDiffs",        "group": "3_env@2",    "when": "config.sf-tools.menu.listEnvDiffs" },
+                { "command": "sf-tools.compareEnvVsLocal",   "group": "3_env@3",    "when": "config.sf-tools.menu.compareEnvVsLocal" },
+                { "command": "sf-tools.listEnvVsLocalDiffs", "group": "3_env@4",    "when": "config.sf-tools.menu.listEnvVsLocalDiffs" },
+                { "command": "sf-tools.extractLabel",        "group": "4_tools@1",  "when": "editorHasSelection && config.sf-tools.menu.extractLabel" },
+                { "command": "sf-tools.expandIfs",           "group": "4_tools@2",  "when": "config.sf-tools.menu.expandIfs" },
+                { "command": "sf-tools.viewSyncStatus",      "group": "4_tools@3",  "when": "config.sf-tools.menu.viewSyncStatus" },
+                { "command": "sf-tools.help",                "group": "5_help@1",   "when": "config.sf-tools.menu.help" }
             ]
         },
         "keybindings": [
@@ -238,6 +248,62 @@
                     "type": "boolean",
                     "default": false,
                     "description": "Run All: Colapsar métodos @isTest para ocultar código de test"
+                },
+                "sf-tools.menu.safeDeploy": {
+                    "type": "boolean", "default": true,
+                    "description": "Menú contextual: mostrar 'Safe Deploy'"
+                },
+                "sf-tools.menu.trackedRetrieve": {
+                    "type": "boolean", "default": true,
+                    "description": "Menú contextual: mostrar 'Tracked Retrieve'"
+                },
+                "sf-tools.menu.formatAll": {
+                    "type": "boolean", "default": true,
+                    "description": "Menú contextual: mostrar 'Format All'"
+                },
+                "sf-tools.menu.takeBackup": {
+                    "type": "boolean", "default": true,
+                    "description": "Menú contextual: mostrar 'Crear Backup'"
+                },
+                "sf-tools.menu.compareBackup": {
+                    "type": "boolean", "default": true,
+                    "description": "Menú contextual: mostrar 'Gestionar Backups'"
+                },
+                "sf-tools.menu.toggleBackup": {
+                    "type": "boolean", "default": false,
+                    "description": "Menú contextual: mostrar 'Activar/Desactivar backup automático'"
+                },
+                "sf-tools.menu.compareEnvironments": {
+                    "type": "boolean", "default": true,
+                    "description": "Menú contextual: mostrar 'Comparar entornos (branch ↔ branch)'"
+                },
+                "sf-tools.menu.listEnvDiffs": {
+                    "type": "boolean", "default": true,
+                    "description": "Menú contextual: mostrar 'Ver archivos diferentes entre entornos'"
+                },
+                "sf-tools.menu.compareEnvVsLocal": {
+                    "type": "boolean", "default": true,
+                    "description": "Menú contextual: mostrar 'Comparar entorno vs archivo local'"
+                },
+                "sf-tools.menu.listEnvVsLocalDiffs": {
+                    "type": "boolean", "default": false,
+                    "description": "Menú contextual: mostrar 'Ver archivos diferentes entre entorno y local'"
+                },
+                "sf-tools.menu.extractLabel": {
+                    "type": "boolean", "default": true,
+                    "description": "Menú contextual: mostrar 'Extraer a Custom Label'"
+                },
+                "sf-tools.menu.expandIfs": {
+                    "type": "boolean", "default": false,
+                    "description": "Menú contextual: mostrar 'Expand If Blocks' (disponible también con Ctrl+Shift+Alt+I)"
+                },
+                "sf-tools.menu.viewSyncStatus": {
+                    "type": "boolean", "default": false,
+                    "description": "Menú contextual: mostrar 'Ver estado de sync'"
+                },
+                "sf-tools.menu.help": {
+                    "type": "boolean", "default": true,
+                    "description": "Menú contextual: mostrar 'Ayuda'"
                 }
             }
         }
