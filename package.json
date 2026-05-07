@@ -2,7 +2,7 @@
     "name": "sf-tools",
     "displayName": "SF Tools",
     "description": "Salesforce developer toolkit for Apex, LWC and Visualforce — Herramienta para desarrolladores Salesforce. EN: (1) Run All — one configurable shortcut runs all enabled operations; (2) Expand If Blocks — adds braces to single-line ifs for PMD compliance; (3) Collapse SOQL — keeps bracket queries on one line; (4) Collapse HTML Attributes — collapses multiline Aura/LWC/VF tags; (5) Collapse @isTest Methods — folds test methods; (6) Extract to Custom Label — right-click to create a label and update CustomLabels.labels-meta.xml; (7) Live Complexity Metrics — CC, COG, LOC, Params per method + nesting depth shown inline on each if/for/while. ES: (1) Run All — un atajo configurable que ejecuta todas las operaciones activas; (2) Expandir ifs — añade llaves a ifs de una línea para cumplir PMD; (3) Colapsar SOQL — deja las queries en una sola línea; (4) Colapsar atributos HTML — colapsa tags multilínea de Aura/LWC/VF; (5) Colapsar @isTest — oculta métodos de test; (6) Extraer a Custom Label — clic derecho para crear el label y actualizar el XML automáticamente; (7) Métricas de complejidad — CC, COG, LOC, Params por método + profundidad de anidamiento en cada if/for/while.",
-    "version": "1.2.0",
+    "version": "1.2.1",
     "publisher": "rbmmm4",
     "engines": { "vscode": "^1.85.0" },
     "categories": ["Formatters", "Other"],
